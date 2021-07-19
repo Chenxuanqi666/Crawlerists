@@ -1,15 +1,13 @@
 
 from scrapy import signals
-import re
 import pymysql
-import execjs
-import requests
 from itemadapter import is_item, ItemAdapter
 from scrapy.http import Request, Response
 from fake_useragent import UserAgent
 from scrapy.exceptions import IgnoreRequest
 
 header = {
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36'
 }
 
@@ -21,19 +19,25 @@ class DemoSpiderMiddleware:
         crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
         return s
 
+
+        # Called for each response that goes through the spider
+        # middleware and into the spider.
+
+        # Should return None or raise an exception.
+        return None
+
     def process_spider_output(self, response, result, spider): 
         for i in result:
             if isinstance(i,Request):
                 yield i
             else:
+                i['html'] = response.text
                 i['request_url'] = response.request.url
                 i['response_url'] = response.url
                 i['website_id'] = spider.website_id
                 i['language_id'] = spider.language_id
-                if 'images' not in i or i['images'] == None:
+                if 'images' not in i:
                     i['images'] = []
-                if 'html' not in i:
-                    i['html'] = response.text
                 yield i
 
     def spider_opened(self, spider):
@@ -56,8 +60,8 @@ class DemoDownloaderMiddleware:
         result = self.cur.fetchall()
 
         if result == ():
-            request.headers['User-Agent'] = str(UserAgent().random)
-            request.meta['proxy'] = 'http://192.168.235.227:8888'
+            header['User-Agent'] = header['User-Agent']
+            request = Request(request.url,headers=header,meta=request.meta)
             return None
         else:
             spider.logger.info('filtered url')
@@ -71,4 +75,4 @@ class DemoDownloaderMiddleware:
             db=spider.sql['db'],
         )
         self.cur = self.db.cursor()
-
+        
